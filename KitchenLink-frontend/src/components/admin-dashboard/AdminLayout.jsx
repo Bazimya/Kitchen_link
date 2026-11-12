@@ -1,0 +1,249 @@
+import React, { useState } from 'react';
+import { NavLink, Outlet, Navigate, Link, useLocation } from 'react-router-dom';
+import {
+  ShieldCheck,
+  Lock,
+  AlertTriangle,
+  Menu as MenuIcon,
+  X,
+  ExternalLink,
+  LogOut,
+  ChevronDown,
+} from 'lucide-react';
+import { useAdmin } from '../../context/AdminContext';
+import RoleAccountMenu from '../common/RoleAccountMenu';
+import ThemeToggle from '../common/ThemeToggle';
+import AdminNotificationBell from './AdminNotificationBell';
+import { allowed, itemForPath, visibleSections } from './adminNav';
+
+
+export default function AdminLayout() {
+  const { admin, hasToken, isAuthenticated, logout, can, isOwner } = useAdmin();
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [openMenus, setOpenMenus] = useState({});
+  const { pathname } = useLocation();
+
+  if (!hasToken) {
+    return <Navigate to="/admin-login" replace />;
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#f5f6f8]">
+        <div className="flex flex-col items-center gap-3 text-stone-500">
+          <div className="w-10 h-10 rounded-full border-2 border-stone-200 border-t-[#1f2937] animate-spin" />
+          <p className="text-sm font-bold">Loading admin panel…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const access = { can, isOwner };
+  const sections = visibleSections(access);
+  const firstPage = sections[0]?.items[0]?.to || '/admin-dashboard/settings/profile';
+  const current = itemForPath(pathname);
+  const blocked = current && !allowed(current, access);
+  // Still on the default (publicly known) password: the server refuses every
+  // other admin action, so only the page to change it opens.
+  const passwordPage = '/admin-dashboard/settings/profile';
+  const mustChangePassword = Boolean(admin?.uses_default_password);
+
+  const navLinkClass = ({ isActive }) =>
+    `flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+      isActive
+        ? 'bg-gradient-to-r from-[#111827] via-[#1f2937] to-[#0b1220] text-white shadow-md'
+        : 'text-stone-600 hover:bg-stone-100 hover:text-[#1f2937]'
+    }`;
+
+  const SidebarContent = () => (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center gap-3 px-2 pb-5">
+        <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-[#111827] via-[#1f2937] to-[#0b1220] flex items-center justify-center flex-shrink-0 shadow-md">
+          <ShieldCheck className="w-6 h-6 text-white" />
+        </div>
+        <div className="min-w-0">
+          <p className="font-extrabold text-sm text-gray-900 truncate">KitchenLink</p>
+          <p className="text-[11px] text-[#374151] font-bold">Admin Panel</p>
+        </div>
+      </div>
+
+      <div className="rounded-2xl bg-stone-100 border border-stone-200 p-3 mb-4">
+        <p className="text-[11px] font-bold text-stone-500 uppercase tracking-wider">Signed in as</p>
+        <p className="text-sm font-black text-gray-900 truncate mt-0.5">{admin?.name || 'Admin'}</p>
+        <p className="text-[11px] text-stone-500 truncate">{admin?.email}</p>
+        {admin?.role && (
+          <span className="mt-1.5 inline-flex items-center px-2 py-0.5 rounded-full bg-[#1f2937] text-white text-[10px] font-black uppercase tracking-wider">
+            {admin.role_label || String(admin.role).replace(/_/g, ' ')}
+          </span>
+        )}
+      </div>
+
+      <nav className="space-y-4 flex-1 overflow-y-auto">
+        {sections.map((section) => (
+          <div key={section.id}>
+            <p className="px-4 mb-1 text-[10px] font-black uppercase tracking-wider text-stone-400">{section.label}</p>
+            <div className="space-y-1">
+              {section.items.map((item) => {
+                const Icon = item.icon;
+                if (item.children) {
+                  const inside = pathname === item.to || pathname.startsWith(`${item.to}/`);
+                  const open = openMenus[item.to] ?? inside;
+                  return (
+                    <div key={item.to}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenMenus((prev) => ({ ...prev, [item.to]: !open }))}
+                        aria-expanded={open}
+                        className={`w-full ${navLinkClass({ isActive: inside && !open })}`}
+                      >
+                        <Icon className="w-[18px] h-[18px]" />
+                        <span className="flex-1 text-left">{item.label}</span>
+                        <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+                      </button>
+                      {open && (
+                        <div className="mt-1 ml-6 pl-3 border-l border-stone-200 space-y-1">
+                          {item.children.map((child) => (
+                            <NavLink
+                              key={child.to}
+                              to={child.to}
+                              onClick={() => setDrawerOpen(false)}
+                              className={({ isActive }) =>
+                                `block px-3 py-2 rounded-lg text-[13px] font-bold transition ${
+                                  isActive ? 'bg-stone-100 text-gray-900' : 'text-stone-500 hover:bg-stone-100 hover:text-[#1f2937]'
+                                }`
+                              }
+                            >
+                              {child.label}
+                            </NavLink>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    end={item.end}
+                    className={navLinkClass}
+                    onClick={() => setDrawerOpen(false)}
+                  >
+                    <Icon className="w-[18px] h-[18px]" />
+                    <span className="flex-1">{item.label}</span>
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </nav>
+
+      <div className="pt-4 mt-4 border-t border-stone-100 space-y-1">
+        <Link
+          to="/vendors"
+          className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-stone-600 hover:bg-stone-100 transition"
+        >
+          <ExternalLink className="w-4 h-4" />
+          Visit marketplace
+        </Link>
+        <button
+          type="button"
+          onClick={logout}
+          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-bold text-red-600 hover:bg-red-50 transition"
+        >
+          <LogOut className="w-4 h-4" />
+          Sign out
+        </button>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#f5f6f8]">
+      <div className="mx-auto max-w-[1500px] flex">
+        <aside className="hidden lg:flex flex-col w-72 flex-shrink-0 border-r border-stone-200/80 bg-white min-h-screen sticky top-0 h-screen p-5">
+          <SidebarContent />
+        </aside>
+
+        {drawerOpen && (
+          <div className="fixed inset-0 z-50 lg:hidden">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
+            <div className="absolute left-0 top-0 h-full w-72 max-w-[85%] bg-white p-5 shadow-2xl animate-fade-in">
+              <div className="flex justify-end mb-2">
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(false)}
+                  aria-label="Close menu"
+                  className="w-9 h-9 rounded-full text-stone-500 hover:bg-stone-100 flex items-center justify-center"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <SidebarContent />
+            </div>
+          </div>
+        )}
+
+        <div className="flex-1 min-w-0">
+          <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-stone-200/80">
+            <div className="px-4 sm:px-6 py-3 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setDrawerOpen(true)}
+                  aria-label="Open menu"
+                  className="lg:hidden w-10 h-10 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-700 flex items-center justify-center transition"
+                >
+                  <MenuIcon className="w-5 h-5" />
+                </button>
+                <div className="min-w-0">
+                  <h1 className="font-black text-base sm:text-lg text-gray-900 truncate">Admin Panel</h1>
+                  <p className="text-[11px] text-stone-400 font-medium hidden sm:block">
+                    Marketplace operations &amp; control
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 sm:gap-3">
+                <ThemeToggle />
+                <AdminNotificationBell />
+                <RoleAccountMenu role="admin" />
+              </div>
+            </div>
+          </header>
+
+          <main className="p-4 sm:p-6 pb-16">
+            {admin?.uses_default_password && (
+              <Link
+                to={passwordPage}
+                className="mb-4 flex items-center gap-2 rounded-xl bg-red-50 border border-red-200 px-4 py-2.5 text-xs font-bold text-red-800 hover:bg-red-100"
+              >
+                <AlertTriangle className="w-4 h-4" />
+                You are using the default admin password. Change it below to unlock the admin panel.
+              </Link>
+            )}
+            {mustChangePassword && pathname.replace(/\/+$/, '') !== passwordPage ? (
+              <Navigate to={passwordPage} replace />
+            ) : blocked && current.end ? (
+              <Navigate to={firstPage} replace />
+            ) : blocked ? (
+              <div className="max-w-lg mx-auto mt-16 bg-white rounded-3xl border border-stone-200 p-8 text-center">
+                <Lock className="w-9 h-9 text-stone-400 mx-auto" />
+                <h2 className="mt-3 text-lg font-black text-gray-900">Not part of your role</h2>
+                <p className="mt-1 text-sm text-stone-500">
+                  Your role ({admin?.role_label || admin?.role}) does not include {current.label}. Ask the owner if you need it.
+                </p>
+                <Link to={firstPage} className="mt-4 inline-block text-sm font-bold text-[#1f2937] underline">
+                  Go to my pages
+                </Link>
+              </div>
+            ) : (
+              <Outlet />
+            )}
+          </main>
+        </div>
+      </div>
+    </div>
+  );
+}

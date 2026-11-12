@@ -1,0 +1,114 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { UtensilsCrossed, Phone, Mail, MapPin, Heart, ShieldCheck } from 'lucide-react';
+import { KIGALI_DISTRICTS } from '../../utils/kigaliAreas';
+
+export default function Footer() {
+  return (
+    <footer className="bg-[#190a03] text-stone-300 pt-16 pb-12 border-t border-[#3d1b0c]/60">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
+          {/* Col 1: Brand Info */}
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#3d1b0c] to-[#6d391d] flex items-center justify-center text-white shadow-md shadow-[#2b1206]/40">
+                <UtensilsCrossed className="w-5 h-5 stroke-[2.2] text-[#f5ebe1]" />
+              </div>
+              <span className="font-extrabold text-xl text-white">
+                Kitchen<span className="text-[#8a5332]">Link</span>
+              </span>
+            </div>
+            <p className="text-xs text-stone-400 leading-relaxed">
+              Rwanda's multi-vendor marketplace connecting home cooks, culinary chefs, bakeries and restaurants directly with food lovers.
+            </p>
+            <div className="flex items-center gap-2 text-xs text-stone-400">
+              <MapPin className="w-4 h-4 text-[#8a5332]" />
+              <span>Kigali, Rwanda</span>
+            </div>
+          </div>
+
+          {/* Col 2: For Customers */}
+          <div>
+            <h4 className="text-sm font-extrabold text-white uppercase tracking-wider mb-4">
+              For Food Lovers
+            </h4>
+            <ul className="space-y-2.5 text-xs text-stone-400 font-medium">
+              <li>
+                <Link to="/" className="hover:text-[#ebd7c5] transition">
+                  Browse Home Kitchens
+                </Link>
+              </li>
+              <li>
+                <Link to="/vendors?filter=preorder" className="hover:text-[#ebd7c5] transition">
+                  Tomorrow's Specials (Pre-Order)
+                </Link>
+              </li>
+              <li>
+                <Link to="/orders" className="hover:text-[#ebd7c5] transition">
+                  Order Tracking & History
+                </Link>
+              </li>
+              <li>
+                <Link to="/profile" className="hover:text-[#ebd7c5] transition">
+                  Saved Addresses & Preferences
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* Col 3: Coverage Areas */}
+          <div>
+            <h4 className="text-sm font-extrabold text-white uppercase tracking-wider mb-4">
+              We deliver across Kigali
+            </h4>
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              {KIGALI_DISTRICTS.map((district) => (
+                <span
+                  key={district}
+                  className="px-2.5 py-1 rounded-lg bg-stone-900/90 text-stone-300 text-[11px] border border-stone-800"
+                >
+                  {district}
+                </span>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-stone-400 leading-relaxed">
+              Every neighbourhood in all three districts. Order from home kitchens near you, wherever you are in the city.
+            </p>
+          </div>
+
+          {/* Col 4: Payments & Trust */}
+          <div>
+            <h4 className="text-sm font-extrabold text-white uppercase tracking-wider mb-4">
+              Supported Payments
+            </h4>
+            <p className="text-xs text-stone-400 mb-3">
+              Pay with Mobile Money, cards, eKash, or your wallet:
+            </p>
+            <div className="flex flex-wrap gap-2 text-xs font-bold">
+              <span className="px-2.5 py-1 rounded-md bg-yellow-400/20 text-yellow-300 border border-yellow-400/30">
+                Mobile Money
+              </span>
+              <span className="px-2.5 py-1 rounded-md bg-blue-400/20 text-blue-300 border border-blue-400/30">
+                Cards
+              </span>
+              <span className="px-2.5 py-1 rounded-md bg-purple-400/20 text-purple-300 border border-purple-400/30">
+                eKash
+              </span>
+              <span className="px-2.5 py-1 rounded-md bg-emerald-400/20 text-emerald-300 border border-emerald-400/30">
+                Wallet
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div className="pt-8 border-t border-[#3d1b0c]/60 flex flex-col sm:flex-row items-center justify-between text-xs text-stone-500 gap-4">
+          <p>© {new Date().getFullYear()} KitchenLink. All rights reserved.</p>
+          <p className="flex items-center gap-1">
+            Made with <Heart className="w-3.5 h-3.5 text-red-500 fill-red-500" /> for Kigali Food Culture
+          </p>
+        </div>
+
+      </div>
+    </footer>
+  );
+}
