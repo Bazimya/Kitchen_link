@@ -1,0 +1,101 @@
+const asyncHandler = require('../utils/asyncHandler');
+const deliveryService = require('../services/deliveryService');
+const driverProfileService = require('../services/driverProfileService');
+const notificationService = require('../services/notificationService');
+const driverWalletService = require('../services/driverWalletService');
+
+const getWallet = asyncHandler(async (req, res) => {
+  res.json(await driverWalletService.getWallet(req.driver));
+});
+
+const requestWithdrawal = asyncHandler(async (req, res) => {
+  res.status(201).json(await driverWalletService.requestWithdrawal(req.driver, req.body));
+});
+
+const updateProfile = asyncHandler(async (req, res) => {
+  res.json(
+    await driverProfileService.update(req.driver, req.body, req.file)
+  );
+});
+
+const listNotifications = asyncHandler(async (req, res) => {
+  res.json(await notificationService.listForDriver(req.driver._id, req.query));
+});
+
+const markNotificationRead = asyncHandler(async (req, res) => {
+  res.json(
+    await notificationService.markDriverRead(req.driver._id, req.params.notification_id)
+  );
+});
+
+const markAllNotificationsRead = asyncHandler(async (req, res) => {
+  res.json(await notificationService.markAllDriverRead(req.driver._id));
+});
+
+const available = asyncHandler(async (req, res) => {
+  res.json(await deliveryService.listAvailable(req.driver, req.query));
+});
+
+const accept = asyncHandler(async (req, res) => {
+  res.json(await deliveryService.accept(req.driver, req.params.delivery_id));
+});
+
+const reject = asyncHandler(async (req, res) => {
+  res.json(await deliveryService.reject(req.driver, req.params.delivery_id));
+});
+
+const updateStatus = asyncHandler(async (req, res) => {
+  res.json(
+    await deliveryService.updateStatus(req.driver, req.params.delivery_id, req.body)
+  );
+});
+
+const confirmDelivery = asyncHandler(async (req, res) => {
+  res.json(
+    await deliveryService.confirmDelivery(req.driver, req.params.delivery_id, req.body)
+  );
+});
+
+const active = asyncHandler(async (req, res) => {
+  res.json(await deliveryService.getActive(req.driver));
+});
+
+const updateLocation = asyncHandler(async (req, res) => {
+  res.json(await deliveryService.updateLocation(req.driver, req.body));
+});
+
+const setAvailability = asyncHandler(async (req, res) => {
+  res.json(await deliveryService.setAvailability(req.driver, req.body));
+});
+
+const history = asyncHandler(async (req, res) => {
+  res.json(await deliveryService.history(req.driver, req.query));
+});
+
+const earnings = asyncHandler(async (req, res) => {
+  res.json(await deliveryService.earnings(req.driver, req.query));
+});
+
+const stats = asyncHandler(async (req, res) => {
+  res.json(await deliveryService.stats(req.driver));
+});
+
+module.exports = {
+  updateProfile,
+  listNotifications,
+  markNotificationRead,
+  markAllNotificationsRead,
+  available,
+  accept,
+  reject,
+  updateStatus,
+  confirmDelivery,
+  active,
+  updateLocation,
+  setAvailability,
+  history,
+  earnings,
+  stats,
+  getWallet,
+  requestWithdrawal,
+};

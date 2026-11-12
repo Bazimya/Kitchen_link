@@ -1,0 +1,232 @@
+const mongoose = require('mongoose');
+const config = require('../config');
+const ApiError = require('../utils/ApiError');
+const vendorRepository = require('../repositories/vendorRepository');
+const categoryRepository = require('../repositories/categoryRepository');
+const menuItemRepository = require('../repositories/menuItemRepository');
+const parsePagination = require('../utils/pagination');
+const { serializeEventOffer } = require('../config/eventPackages');
+const {
+  serializeCategory,
+  serializeVendorCard,
+  serializeNearbyVendor,
+  serializePopularDish,
+} = require('../utils/serializers');
+
+const assertCategoryId = (categoryId) => {
+  if (!mongoose.isValidObjectId(categoryId)) {
+    throw ApiError.badRequest('category_id must be a valid id.', {
+      category_id: 'expected a valid MongoDB id',
+    });
+  }
+};
+
+class HomeService {
+  async getFeed(coords, { vendorTypes = null } = {}) {
+    const locationUsed = Boolean(coords);
+    const radiusKm = locationUsed ? config.geo.feedRadiusKm : null;
+
+    const categories = (await categoryRepository.findAll(config.limits.categories)).map(
+      serializeCategory
+    );
+
+    let vendorRows;
+    if (locationUsed) {
+      const { vendors } = await vendorRepository.findNearby({
+        coords,
+        radiusKm,
+        vendorTypes,
+        sort: 'distance',
+        limit: config.limits.feedVendors,
+      });
+      vendorRows = vendors.map((v) => ({ vendor: v, distanceKm: v.distance_km }));
+    } else {
+      const vendors = await vendorRepository.findTopRated(config.limits.feedVendors, { vendorTypes });
+      vendorRows = vendors.map((v) => ({ vendor: v, distanceKm: null }));
+    }
+
+    const nearbyVendors = vendorRows.map(({ vendor, distanceKm }) =>
+      serializeVendorCard(vendor, { distanceKm })
+    );
+
+    let dishes = [];
+    if (locationUsed) {
+      const vendorIds = vendorRows.map(({ vendor }) => vendor._id);
+      if (vendorIds.length > 0) {
+        dishes = await menuItemRepository.findPopular({
+          vendorIds,
+          limit: config.limits.feedDishes,
+        });
+      }
+    } else {
+      dishes = await menuItemRepository.findPopular({
+        limit: config.limits.feedDishes,
+      });
+    }
+
+    return {
+      categories,
+      nearby_vendors: nearbyVendors,
+      popular_dishes: dishes.map(serializePopularDish),
+      meta: {
+        location_used: locationUsed,
+        radius_km: radiusKm,
+        vendor_types: vendorTypes,
+      },
+    };
+  }
+
+  async getCategories() {
+    const categories = await categoryRepository.findAll(config.limits.categories);
+    return { categories: categories.map(serializeCategory) };
+  }
+
+  /** All kitchens in the system; nearby ones first when coordinates are given. */
+  async getAllVendors({ coords, categoryId, vendorTypes = null, eventsOnly = false, guests = null, sort, query }) {
+    const { limit, page, offset } = parsePagination(query, {
+      defaultLimit: config.limits.nearbyDefault,
+      maxLimit: config.limits.nearbyMax,
+    });
+    const nearRadiusKm = config.geo.nearYouRadiusKm;
+    const meta = {
+      limit,
+      page,
+      offset,
+      sort,
+      category_id: categoryId || null,
+      vendor_types: vendorTypes,
+      events_only: eventsOnly,
+      guests,
+      near_radius_km: nearRadiusKm,
+      location_used: Boolean(coords),
+    };
+
+    let categoryVendorIds = null;
+    if (categoryId) {
+      assertCategoryId(categoryId);
+      categoryVendorIds = await menuItemRepository.findVendorIdsByCategory(categoryId);
+      if (categoryVendorIds.length === 0) {
+        return { vendors: [], meta: { ...meta, total: 0, nearby_total: 0 } };
+      }
+    }
+
+    const { vendors, total, nearbyTotal } = await vendorRepository.findAll({
+      coords,
+      nearRadiusKm,
+      categoryVendorIds,
+      vendorTypes,
+      eventsOnly,
+      guests,
+      sort,
+      limit,
+      offset,
+    });
+
+    return {
+      vendors: vendors.map((v) => ({
+        ...serializeNearbyVendor(v, { distanceKm: v.distance_km }),
+        is_nearby: Boolean(v.is_nearby),
+        ...(eventsOnly ? { event: serializeEventOffer(v, guests, v.distance_km) } : {}),
+      })),
+      meta: { ...meta, total, nearby_total: nearbyTotal },
+    };
+  }
+
+  /**
+   * Customer map: every kitchen whose store is open, anywhere, so customers
+   * can explore by panning the map. Distances only when coordinates are given.
+   */
+  async getMapVendors({ coords, categoryId, vendorTypes = null, eventsOnly = false, guests = null }) {
+    const meta = { category_id: categoryId || null, vendor_types: vendorTypes, events_only: eventsOnly, guests, location_used: Boolean(coords) };
+
+    let categoryVendorIds = null;
+    if (categoryId) {
+      assertCategoryId(categoryId);
+      categoryVendorIds = await menuItemRepository.findVendorIdsByCategory(categoryId);
+      if (categoryVendorIds.length === 0) {
+        return { vendors: [], meta: { ...meta, total: 0, limit: config.limits.mapVendorsMax } };
+      }
+    }
+
+    const { vendors, total } = await vendorRepository.findOpenForMap({
+      coords,
+      categoryVendorIds,
+      vendorTypes,
+      eventsOnly,
+      guests,
+      limit: config.limits.mapVendorsMax,
+    });
+
+    return {
+      vendors: vendors.map((v) => ({
+        ...serializeNearbyVendor(v, { distanceKm: v.distance_km }),
+        ...(eventsOnly ? { event: serializeEventOffer(v, guests, v.distance_km) } : {}),
+      })),
+      meta: { ...meta, total, limit: config.limits.mapVendorsMax },
+    };
+  }
+
+  async getNearbyVendors({ coords, radiusKm, categoryId, vendorTypes = null, sort, query }) {
+    if (categoryId) {
+      assertCategoryId(categoryId);
+      const category = await categoryRepository.findById(categoryId);
+      if (!category) {
+        throw ApiError.notFound('Category not found.', 'CATEGORY_NOT_FOUND');
+      }
+    }
+
+    const { limit, page, offset } = parsePagination(query, {
+      defaultLimit: config.limits.nearbyDefault,
+      maxLimit: config.limits.nearbyMax,
+    });
+
+    let categoryVendorIds = null;
+    if (categoryId) {
+      categoryVendorIds = await menuItemRepository.findVendorIdsByCategory(categoryId);
+      if (categoryVendorIds.length === 0) {
+        return {
+          vendors: [],
+          meta: {
+            limit,
+            page,
+            offset,
+            total: 0,
+            radius_km: radiusKm,
+            sort,
+            category_id: categoryId,
+            vendor_types: vendorTypes,
+            location_used: true,
+          },
+        };
+      }
+    }
+
+    const { vendors, total } = await vendorRepository.findNearby({
+      coords,
+      radiusKm,
+      categoryVendorIds,
+      vendorTypes,
+      sort,
+      limit,
+      offset,
+    });
+
+    return {
+      vendors: vendors.map((v) =>
+        serializeNearbyVendor(v, { distanceKm: v.distance_km })
+      ),
+      meta: {
+        limit,
+        page,
+        offset,
+        total,
+        radius_km: radiusKm,
+        sort,
+        category_id: categoryId || null,
+        location_used: true,
+      },
+    };
+  }
+}
+
+module.exports = new HomeService();

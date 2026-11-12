@@ -1,0 +1,45 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "Online Food Kitchen - discovery API backend",
+  "main": "src/server.js",
+  "scripts": {
+    "test": "node --test \"test/**/*.test.js\"",
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate:vendors": "node src/scripts/migrateVendorAccounts.js",
+    "migrate:vendor-types": "node src/scripts/migrateVendorTypes.js",
+    "strip:metadata": "node src/scripts/stripUploadMetadata.js",
+    "migrate:pg": "node src/scripts/migratePostgres.js",
+    "seed:drivers": "node src/scripts/seedDrivers.js",
+    "seed:admin": "node src/scripts/seedAdmin.js",
+    "seed:categories": "node src/scripts/seedCategories.js",
+    "seed:type-categories": "node src/scripts/ensureTypeCategories.js",
+    "seed:pg": "node src/scripts/seedPostgres.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.6",
+    "express": "^5.2.1",
+    "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.11.1",
+    "multer": "^2.4.0",
+    "nodemailer": "^10.2.1",
+    "pg": "^8.16.0",
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.14"
+  },
+  "overrides": {
+    "nodemon": {
+      "chokidar": "^4.0.3"
+    }
+  }
+}
